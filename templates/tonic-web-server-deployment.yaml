@@ -1,3 +1,7 @@
+{{- $ports := .Values.tonicai.web_server.ports | default dict }}
+{{- $httpsOnly := $ports.httpsOnly | default false }}
+{{- $httpPort := $ports.http | default 80 | quote }}
+{{- $httpsPort := $ports.https | default 443 | quote }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -118,6 +122,12 @@ spec:
           value: http://tonic-notifications:7000
         - name: TONIC_PYML_URL
           value: https://tonic-pyml-service:7700
+        - name: TONIC_HTTP_PORT
+          value: {{ $httpPort }}
+        - name: TONIC_HTTPS_PORT
+          value: {{ $httpsPort }}
+        - name: TONIC_HTTPS_ONLY
+          value: {{ $httpsOnly }}
         {{- if  ((.Values.tonicai).web_server).image }}
         image: {{ .Values.tonicai.web_server.image }}:{{ .Values.tonicVersion }}
         {{ else }}
@@ -126,8 +136,12 @@ spec:
         imagePullPolicy: Always
         name: tonic-web-server
         ports:
-        - containerPort: 80
-        - containerPort: 443
+        {{- if not $httpsOnly }}
+        - containerPort: {{ $httpPort }}
+          name: "http"
+        {{- end }}
+        - containerPort: {{ $httpsPort }}
+          name: "https"
         resources:
           limits:
             memory: "3Gi"
